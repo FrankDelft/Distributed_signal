@@ -52,8 +52,6 @@ def build_random_graph(required_probability=0.999):
     return num_nodes, G, A, pos
 
 
-import numpy as np
-
 def generate_temp_field(num_nodes, var, true_temp):
     """
     Generate a temperature field for a given number of nodes.
@@ -74,6 +72,29 @@ def generate_temp_field(num_nodes, var, true_temp):
     return temperature
 
 
+def random_gossip(temperature, num_nodes, A, tolerance=0.00001):
+    num_iter=0
+    converged=False
+    loss=np.array([])
+    while(not converged):
+        # for var in range(100000):
+        num_iter+=1
+        node_i=int(np.random.uniform(low=0, high=num_nodes))
+        i_neigh=np.transpose(np.nonzero(A[node_i,:]))
+        j_index=int(np.random.uniform(low=0, high=np.shape(i_neigh)[0]))
+        node_j=i_neigh[j_index][0]
+
+        #update equation
+        W=W_construct(node_i,node_j,num_nodes)
+        temperature=np.dot(W,temperature)
+
+        if np.std(temperature) < tolerance:
+            loss=np.append(loss,np.std(temperature))
+            converged=True
+        else:
+            loss=np.append(loss,np.std(temperature))
+    return loss
+
 required_probability=0.9999
 num_nodes, G,A,pos=build_random_graph(required_probability)
 print("num_nodes:",num_nodes)
@@ -84,29 +105,19 @@ temperature=generate_temp_field(num_nodes,5,25)
 nx.draw(G, pos=pos, with_labels=True)
 plt.show()
 
-converged=False
-num_iter=0
 
-x_av=np.ones([num_nodes,1])*np.average(temperature)
+
 temp_og=temperature
-while(not converged):
-# for var in range(100000):
-    num_iter+=1
-    node_i=int(np.random.uniform(low=0, high=num_nodes))
-    i_neigh=np.transpose(np.nonzero(A[node_i,:]))
-    j_index=int(np.random.uniform(low=0, high=np.shape(i_neigh)[0]))
+tolerance=0.00001
+loss_random=random_gossip(temperature,num_nodes,A,tolerance)
 
-    node_j=i_neigh[j_index][0]
+plt.plot(range(1, len(loss_random)+1), loss_random)
+plt.xlabel('Iterations')
+plt.ylabel('Loss')
+plt.title('Loss vs Iterations')
+plt.yscale('log')
+plt.show()
 
-    #update equation
-    W=W_construct(node_i,node_j,num_nodes)
-
-    temp_old=temperature
-    temperature=np.dot(W,temperature)
-
-    if sum(np.abs(x_av-temperature)) < 0.00001:
-        converged=True
-    
 # print("new",np.transpose(temperature),"\nold",np.transpose(temp_og),"\n numiter:",num_iter)
 
 
