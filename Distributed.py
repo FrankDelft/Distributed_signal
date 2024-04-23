@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-np.random.seed(1)
+# np.random.seed(1)
 
 
 def build_random_graph(required_probability=0.999):
@@ -22,7 +22,7 @@ def build_random_graph(required_probability=0.999):
     num_nodes = int(np.ceil(np.sqrt(1 / (1 - required_probability))))
 
     num_nodes = 200
-    r_c = np.sqrt(np.log(num_nodes) / num_nodes)
+    r_c = np.sqrt(2*np.log(num_nodes) / num_nodes)
 
     pos = {i: (np.random.uniform(low=0, high=100), np.random.uniform(low=0, high=100)) for i in range(num_nodes)}
 
@@ -89,7 +89,7 @@ def random_gossip(temperature, A, tolerance=0.00001):
     num_nodes = np.shape(A)[0]
     converged = False
     loss = np.array([])
-        
+    avg_temp = np.mean(temperature)
     while not converged:
 
         node_i = int(np.random.uniform(low=0, high=num_nodes))
@@ -104,11 +104,11 @@ def random_gossip(temperature, A, tolerance=0.00001):
         temperature[node_i]=avg
         temperature[node_j]=avg
 
-        if np.var(temperature) < tolerance:
-            loss = np.append(loss, np.var(temperature))
+        if np.sum((temperature - avg_temp)**2)< tolerance:
+            loss = np.append(loss, np.sum((temperature - avg_temp)**2))
             converged = True
         else:
-            loss = np.append(loss, np.var(temperature))
+            loss= np.append(loss, np.sum((temperature - avg_temp)**2))
     return loss,temperature
 
 
@@ -124,7 +124,7 @@ def async_distr_averaging(temperature,A,tolerance):
     converged = False
     loss_a = np.array([])
     transmissions = np.array([])
-    
+    avg_temp = np.mean(temperature)
     while not converged:
         node_i = int(np.random.uniform(low=0, high=num_nodes))
         i_neigh = np.transpose(np.nonzero(A[node_i, :]))
@@ -136,48 +136,49 @@ def async_distr_averaging(temperature,A,tolerance):
         temperature[node_i] = avg_val
         temperature[i_neigh] = avg_val
 
-        if np.var(temperature) < tolerance:
-            loss_a = np.append(loss_a, np.var(temperature))
+        if np.sum((temperature - avg_temp)**2)< tolerance:
+            loss_a = np.append(loss_a, np.sum((temperature - avg_temp)**2))
             converged = True
         else:
-            loss_a = np.append(loss_a, np.var(temperature))
+            loss_a = np.append(loss_a, np.sum((temperature - avg_temp)**2))
 
     return loss_a,transmissions,temperature
 
-def async_ADMM(temperature,A,tolerance):
-    num_nodes = np.shape(A)[0]
-    converged = False
-    loss = np.array([])
+# def async_ADMM(temperature,A,tolerance):
+#     num_nodes = np.shape(A)[0]
+#     converged = False
+#     loss = np.array([])
         
-    while not converged:
+#     while not converged:
 
-        node_i = int(np.random.uniform(low=0, high=num_nodes))
-        i_neigh = np.transpose(np.nonzero(A[node_i, :]))
-        j_index = int(np.random.uniform(low=0, high=np.shape(i_neigh)[0]))
-        node_j = i_neigh[j_index][0]
+#         node_i = int(np.random.uniform(low=0, high=num_nodes))
+#         i_neigh = np.transpose(np.nonzero(A[node_i, :]))
+#         j_index = int(np.random.uniform(low=0, high=np.shape(i_neigh)[0]))
+#         node_j = i_neigh[j_index][0]
 
-        # # update equation
-        # W = W_construct_rand_gossip(node_i, node_j, num_nodes)
-        # temperature = np.dot(W, temperature)
-        avg=(temperature[node_i]+temperature[node_j])/2
-        temperature[node_i]=avg
-        temperature[node_j]=avg
+#         # # update equation
+#         # W = W_construct_rand_gossip(node_i, node_j, num_nodes)
+#         # temperature = np.dot(W, temperature)
+#         avg=(temperature[node_i]+temperature[node_j])/2
+#         temperature[node_i]=avg
+#         temperature[node_j]=avg
 
-        if np.var(temperature) < tolerance:
-            loss = np.append(loss, np.var(temperature))
-            converged = True
-        else:
-            loss = np.append(loss, np.var(temperature))
-    return loss,temperature
+#         if np.var(temperature) < tolerance:
+#             loss = np.append(loss, np.var(temperature))
+#             converged = True
+#         else:
+#             loss = np.append(loss, np.var(temperature))
+#     return loss,temperature
 
-
+# def pdmm():
+#     z=np.zeros([num_nodes,1])
 
 
 def plot_log_convergence(losses,transmissions, legend,num_nodes):
     for i,loss in enumerate(losses):
         plt.plot(transmissions[i], loss)
     plt.xlabel('Transmissions')
-    plt.ylabel('Loss (variance of temperature values)')
+    plt.ylabel('Loss ||x-x_ave||^2')
     plt.title('Loss vs Transmission for {} nodes'.format(num_nodes))
     plt.yscale('log')
     plt.legend(legend)
